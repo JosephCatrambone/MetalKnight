@@ -1,0 +1,4 @@
+onnxruntime
+Pillow
+fastapi[standard-no-fastapi-cloud-cli]
+numpy
