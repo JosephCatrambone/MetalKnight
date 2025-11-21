@@ -42,8 +42,3 @@ def inference_single(model_name: str, file: UploadFile):
 		active_model.load_model()
 	preds = ml_models[model_name].predict_classes(image)
 	return preds
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-	return {"item_id": item_id, "q": q}
