@@ -12,14 +12,11 @@ def softmax(x):
 
 
 class BaseMLModel(ABC):
-	def prepare_image_as_chw_tensor(self, image: Image.Image, auto_resize: bool = True) -> numpy.ndarray:
+	def prepare_image_as_chw_tensor(self, image: Image.Image) -> numpy.ndarray:
 		"""Given an image in RGB, assert that the W,H match our input size and that our mode is RGB, then convert to
 		a channels-first, height-second, width third format and return as a float tensor with pixels in [0,1]."""
-		assert image.mode == 'RGB'
-		if not auto_resize:
-			assert image.size == self.get_input_image_size()
-		else:
-			image = image.resize(self.get_input_image_size())
+		image = image.resize(self.get_input_image_size())
+		image = image.convert('RGB')
 		tensor = numpy.asarray(image).astype(numpy.float32) / 255.0  # Generates H=0, W=1, C=2.
 		tensor = numpy.transpose(tensor, (2, 0, 1))  # TODO: Double check this is C, H, W.
 		return tensor
