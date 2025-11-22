@@ -1,4 +1,5 @@
-onnxruntime
-Pillow
-fastapi[standard-no-fastapi-cloud-cli]
-numpy
+onnxruntime==1.23.2
+pillow==12.0.0
+fastapi[standard-no-fastapi-cloud-cli]==0.121.3
+numpy==2.3.5
+uvicorn[standard]
