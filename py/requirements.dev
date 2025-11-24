@@ -1,3 +1,14 @@
 ipython
 jupyter
 pytest
+
+# Model training:
+wandb 
+onnxscript
+ipython
+jupyter
+pytest
+torch
+torchvision
+numpy
+pillow
