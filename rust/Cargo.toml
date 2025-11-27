@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 tract-onnx = "0.22.0"
 image = "0.25.9"
+salvo = "*"
+tokio = { version = "*", features = ["macros"] }
+tracing = "*"
+tracing-subscriber = "0.3.20"

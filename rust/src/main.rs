@@ -1,7 +1,59 @@
 
+use image::{DynamicImage, ImageReader, GenericImageView};
+use std::fs::create_dir_all;
+use std::io::Cursor;
+use std::path::Path;
+use salvo::prelude::*;
 use tract_onnx::prelude::*;
 
-fn main() -> TractResult<()> {
+
+#[handler]
+async fn index(res: &mut Response) {
+	res.render(Text::Html("<html>Ohai</html>"));
+}
+
+
+#[handler]
+async fn upload(req: &mut Request, res: &mut Response) {
+	let file = req.file("file").await;
+	if let Some(file) = file {
+		/*
+		let dest = format!("temp/{}", file.name().unwrap_or("file"));
+		let info = if let Err(e) = std::fs::copy(file.path(), Path::new(&dest)) {
+			res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+			format!("file not found in request: {e}")
+		} else {
+			format!("File uploaded to {dest}")
+		};
+
+		res.render(Text::Plain(info));
+		*/
+		// ImageReader::new
+		let img = ImageReader::open(file.path()).unwrap().decode().unwrap();
+		let (width, height) = img.dimensions();
+		res.render(Text::Plain(format!("Image size: {}x{}", width, height)));
+	} else {
+		res.status_code(StatusCode::BAD_REQUEST);
+		res.render(Text::Plain("file not found in request"));
+	};
+}
+
+
+#[tokio::main]
+async fn main() {
+	tracing_subscriber::fmt().init();
+
+	// Do we need a temp dir for photos?
+	//use std::fs::create_dir_all;
+	//create_dir_all("temp").unwrap();
+	let router = Router::new().get(index).post(upload);
+
+	let acceptor = TcpListener::new("0.0.0.0:8080").bind().await;
+	Server::new(acceptor).serve(router).await;
+}
+
+
+fn inference() -> TractResult<()> {
 	let model = tract_onnx::onnx()
 		//.model_for_read(include_bytes!())
 		// load the model
