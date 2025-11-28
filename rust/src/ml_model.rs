@@ -55,7 +55,7 @@ impl MLModel {
 		preferred_image_size: (u32, u32),
 		model_bytes: &'static [u8], // Use include_bytes!()
 	) -> Self {
-		let mut model_buffer = Cursor::new(model_bytes.clone());
+		let mut model_buffer = Cursor::new(model_bytes);
 
 		let model = tract_onnx::onnx()
 			.model_for_read(&mut model_buffer).expect("Failed to load compiled model.")
