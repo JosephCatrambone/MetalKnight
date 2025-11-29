@@ -1,0 +1,9 @@
+# Doesn't use MUSL so we can link with glib and just copy our locally built image.
+FROM debian:bookworm-slim
+
+WORKDIR /
+
+COPY ./target/release/metal_knight ./
+
+CMD ["./metal_knight"]
+
