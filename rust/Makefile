@@ -28,4 +28,4 @@ publish: docker  ## Build the self-contained docker image, tag it as latest, and
 	## Might need `docker login`
 
 help: ## Display this help message
-    @grep --no-filename -E ‘^[a-zA-Z_-]+:.*?## .*$$‘ $(MAKEFILE_LIST) | sort |
+	cat Makefile | grep -E '^[a-zA-Z_-]+:.*?## .*$$'
