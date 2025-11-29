@@ -6,12 +6,14 @@ from PIL import Image
 from pydantic import BaseModel
 
 from models import AdultExplicit
+from models.badcrop import BadCrop
 from models.screenshot import Screenshot
 
 app = FastAPI()
 ml_models = {
 	"adult_nsfw": AdultExplicit(),
 	"screenshot": Screenshot(),
+	"badcrop": BadCrop(),
 }
 
 # These will NOT be in shared memory, so all workers will have an instance.
