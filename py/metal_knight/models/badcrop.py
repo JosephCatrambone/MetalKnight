@@ -31,12 +31,11 @@ class BadCrop(BaseMLModel):
 		"""Run inference on an input image, returning a map from class name to probability."""
 		tensor = self.prepare_image_as_chw_tensor(image)
 		tensor = numpy.expand_dims(tensor, axis=0)
-		print(tensor.shape)
 		out = self.inference_session.run(["output"], {"input": tensor,})[0][0]
 		if normalize:
 			out = softmax(out)
 		class_preds = {
-			"goodcrop": float(out[0]),
-			"badcrop": float(out[1]),
+			"badcrop": float(out[0]),
+			"goodcrop": float(out[1]),
 		}
 		return class_preds

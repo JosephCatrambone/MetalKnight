@@ -31,7 +31,6 @@ class AdultExplicit(BaseMLModel):
 		"""Run inference on an input image, returning a map from class name to probability."""
 		tensor = self.prepare_image_as_chw_tensor(image)
 		tensor = numpy.expand_dims(tensor, axis=0)
-		print(tensor.shape)
 		# TODO: Do we get any speed improvements from hard-coding the inputs/outputs instead of
 		# session.get_inputs()[0].name and session.get_outputs()[0].name?
 		out = self.inference_session.run(["output"], {"input": tensor,})[0][0]
