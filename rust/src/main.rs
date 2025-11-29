@@ -12,10 +12,13 @@ use ml_model::MLModel;
 
 // Staic models:
 static NSFW_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
-	Arc::new(Mutex::new(MLModel::new_from_bytes("nsfw", vec!["safe", "nsfw"], (224, 224), include_bytes!("../resources/nsfw_model.onnx"), 4)))
+	Arc::new(Mutex::new(MLModel::new_from_bytes("nsfw", vec!["safe", "nsfw"], (224, 224), include_bytes!("../resources/adult_nsfw.onnx"), 4)))
 });
 static BAD_CROP_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
 	Arc::new(Mutex::new(MLModel::new_from_bytes("badcrop", vec!["goodcrop", "badcrop"], (224, 224), include_bytes!("../resources/bad_crop.onnx"), 4)))
+});
+static SCREENSHOT_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
+	Arc::new(Mutex::new(MLModel::new_from_bytes("screenshot", vec!["not_screenshot", "screenshot"], (224, 224), include_bytes!("../resources/screenshot.onnx"), 4)))
 });
 
 
@@ -38,7 +41,7 @@ async fn inference(file: FormFile, model_names: QueryParam<String, false>) -> St
 	//let mut res: Value = json!({});
 	let mut model_predictions: HashMap<String, Value> = HashMap::new();
 
-	for model_ref in [&NSFW_MODEL, &BAD_CROP_MODEL] {
+	for model_ref in [&NSFW_MODEL, &BAD_CROP_MODEL, &SCREENSHOT_MODEL] {
 		if let Ok(mut model) = model_ref.lock() {
 			let preds = model.infer_from_image(&img.to_rgb8());
 			model_predictions.insert(model.name.to_string(), serde_json::to_value(preds).unwrap());
