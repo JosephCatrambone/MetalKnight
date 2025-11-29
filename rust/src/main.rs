@@ -1,50 +1,69 @@
 mod ml_model;
 
-use std::collections::HashMap;
-use image::{ImageReader, GenericImageView};
+use image::ImageReader;
 use salvo::oapi::extract::*;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value, Result};
-use std::fs::create_dir_all;
+use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
+
 use ml_model::MLModel;
 
-// Staic models:
+
+// Static models:
 static NSFW_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
-	Arc::new(Mutex::new(MLModel::new_from_bytes("nsfw", vec!["safe", "nsfw"], (224, 224), include_bytes!("../resources/adult_nsfw.onnx"), 4)))
+	Arc::new(Mutex::new(MLModel::new_from_bytes("nsfw", vec!["safe", "nsfw"], (224, 224), include_bytes!("../resources/adult_nsfw.onnx"))))
 });
 static BAD_CROP_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
-	Arc::new(Mutex::new(MLModel::new_from_bytes("badcrop", vec!["goodcrop", "badcrop"], (224, 224), include_bytes!("../resources/bad_crop.onnx"), 4)))
+	Arc::new(Mutex::new(MLModel::new_from_bytes("badcrop", vec!["goodcrop", "badcrop"], (224, 224), include_bytes!("../resources/bad_crop.onnx"))))
 });
 static SCREENSHOT_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
-	Arc::new(Mutex::new(MLModel::new_from_bytes("screenshot", vec!["not_screenshot", "screenshot"], (224, 224), include_bytes!("../resources/screenshot.onnx"), 4)))
+	Arc::new(Mutex::new(MLModel::new_from_bytes("screenshot", vec!["not_screenshot", "screenshot"], (224, 224), include_bytes!("../resources/screenshot.onnx"))))
 });
+static MODEL_LIST: [&LazyLock<Arc<Mutex<MLModel>>>; 3] = [&NSFW_MODEL, &BAD_CROP_MODEL, &SCREENSHOT_MODEL];
 
 
 // Handlers:
-#[handler]
-async fn index(res: &mut Response) {
-	res.render(Text::Html("<html>Ohai</html>"));
-}
+// or endpoints, since we have no #[handler].
 
-
+/// Get meta-info for each model, including the preferred input image size and output classes.
 #[endpoint]
-async fn model_info(model_name: QueryParam<String, false>) -> String {
-	format!("Hello, {}!", model_name.as_deref().unwrap_or("World"))
+async fn model_info(model_name_param: QueryParam<String, false>) -> String {
+	let model_name = model_name_param.as_deref().unwrap_or("");
+	let mut resp = String::new();
+	if model_name.eq("") {
+		// List all models.
+		for m in MODEL_LIST {
+			if let Ok(model) = m.lock() {
+				resp += model.name;
+				resp += "\n";
+			}
+		}
+	}
+	resp
 }
 
 
 #[endpoint]
 async fn inference(file: FormFile, model_names: QueryParam<String, false>) -> String {
+	// TODO: Set return type to Json and make a real response object.
 	let img = ImageReader::open(file.path()).unwrap().decode().unwrap();
-	//let mut res: Value = json!({});
 	let mut model_predictions: HashMap<String, Value> = HashMap::new();
 
-	for model_ref in [&NSFW_MODEL, &BAD_CROP_MODEL, &SCREENSHOT_MODEL] {
+	let model_subset: Vec<String> = if let Some(name_list) = model_names.into_inner() {
+		name_list.split(",").map(|f|{ f.to_string() }).collect()
+	} else {
+		vec![]
+	};
+
+	for model_ref in MODEL_LIST {
 		if let Ok(mut model) = model_ref.lock() {
-			let preds = model.infer_from_image(&img.to_rgb8());
-			model_predictions.insert(model.name.to_string(), serde_json::to_value(preds).unwrap());
+			// Could we find a way to skip getting the lock?
+			if model_subset.is_empty() || model_subset.contains(&model.name.to_string()) {
+				let preds = model.infer_from_image(&img.to_rgb8());
+				model_predictions.insert(model.name.to_string(), serde_json::to_value(preds).unwrap());
+			}
 		}
 	}
 
@@ -81,7 +100,7 @@ async fn main() {
 	//create_dir_all("temp").unwrap();
 
 	let router = Router::new().push(
-		Router::with_path("model")
+		Router::with_path("inference")
 			.get(model_info)
 			.post(inference)
 	);
