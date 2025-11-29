@@ -1,20 +1,25 @@
 mod ml_model;
 
+use std::collections::HashMap;
 use image::{ImageReader, GenericImageView};
-use std::fs::create_dir_all;
-use std::sync::LazyLock;
 use salvo::oapi::extract::*;
 use salvo::prelude::*;
-use tract_onnx::prelude::*;
-
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value, Result};
+use std::fs::create_dir_all;
+use std::sync::{Arc, LazyLock, Mutex};
 use ml_model::MLModel;
 
 // Staic models:
-static NSFW_MODEL: LazyLock<MLModel> = LazyLock::new(|| {
-	MLModel::new_from_bytes("nsfw", vec!["safe", "nsfw"], (224, 224), include_bytes!("../resources/nsfw_model.onnx"))
+static NSFW_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
+	Arc::new(Mutex::new(MLModel::new_from_bytes("nsfw", vec!["safe", "nsfw"], (224, 224), include_bytes!("../resources/nsfw_model.onnx"), 4)))
+});
+static BAD_CROP_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
+	Arc::new(Mutex::new(MLModel::new_from_bytes("badcrop", vec!["goodcrop", "badcrop"], (224, 224), include_bytes!("../resources/bad_crop.onnx"), 4)))
 });
 
 
+// Handlers:
 #[handler]
 async fn index(res: &mut Response) {
 	res.render(Text::Html("<html>Ohai</html>"));
@@ -27,16 +32,34 @@ async fn model_info(model_name: QueryParam<String, false>) -> String {
 }
 
 
+#[endpoint]
+async fn inference(file: FormFile, model_names: QueryParam<String, false>) -> String {
+	let img = ImageReader::open(file.path()).unwrap().decode().unwrap();
+	//let mut res: Value = json!({});
+	let mut model_predictions: HashMap<String, Value> = HashMap::new();
+
+	for model_ref in [&NSFW_MODEL, &BAD_CROP_MODEL] {
+		if let Ok(mut model) = model_ref.lock() {
+			let preds = model.infer_from_image(&img.to_rgb8());
+			model_predictions.insert(model.name.to_string(), serde_json::to_value(preds).unwrap());
+		}
+	}
+
+	let json_data = serde_json::to_value(&model_predictions).expect("Failed to serialize model outputs");
+	serde_json::to_string(&json_data).expect("Failed to stringify JSON value.")
+}
+
+
 #[handler]
-async fn model_inference(req: &mut Request, res: &mut Response) {
+async fn old_model_inference(req: &mut Request, res: &mut Response) {
 	let file = req.file("file").await;
 	if let Some(file) = file {
 		// ImageReader::new
 		let img = ImageReader::open(file.path()).unwrap().decode().unwrap();
 		//let (width, height) = img.dimensions();
 		//res.render(Text::Plain(format!("Image size: {}x{}", width, height)));
-		let model: &MLModel = &*NSFW_MODEL;
-		if let Ok(preds) = model.infer_from_image(&img.to_rgb8()) {
+		if let Ok(mut model) = NSFW_MODEL.clone().lock() {
+			let preds = model.infer_from_image(&img.to_rgb8());
 			res.render(Text::Plain(format!("{}", preds.get("nsfw").unwrap())));
 		}
 	} else {
@@ -57,7 +80,7 @@ async fn main() {
 	let router = Router::new().push(
 		Router::with_path("model")
 			.get(model_info)
-			.post(model_inference)
+			.post(inference)
 	);
 
 	let doc = OpenApi::new("Metal Knight API", "0.1.0").merge_router(&router);
