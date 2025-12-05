@@ -9,7 +9,7 @@ setup-dev:  ## Installs all libraries needed to train+run+develop.
 	pip install -r ./requirements.dev
 
 run-dev: setup-dev  ## Host the application on 8080.
-	pushd metal_knight && fastapi run app.py --port 8080 && popd
+	cd metal_knight && fastapi run app.py --port 8080
 
 docker: ## Build a docker image and tag it as rc.
 	docker build -t metalknight:rc .

@@ -1,8 +1,6 @@
 FROM python:3.12-slim
 LABEL authors="josephcat"
 
-COPY ./resources /resources
-
 WORKDIR /code
 
 ENV PYTHONPATH=/code
@@ -10,6 +8,8 @@ ENV PYTHONPATH=/code
 COPY ./requirements.txt /code/requirements.txt
 
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+
+COPY ./resources /resources
 
 COPY ./metal_knight /code
 

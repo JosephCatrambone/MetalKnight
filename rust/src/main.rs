@@ -13,13 +13,13 @@ use ml_model::MLModel;
 
 // Static models:
 static NSFW_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
-	Arc::new(Mutex::new(MLModel::new_from_bytes("nsfw", vec!["safe", "nsfw"], (224, 224), include_bytes!("../resources/adult_nsfw.onnx"))))
+	Arc::new(Mutex::new(MLModel::new_from_bytes("nsfw", vec!["safe", "nsfw"], (224, 224), false, include_bytes!("../resources/adult_nsfw.onnx"))))
 });
 static BAD_CROP_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
-	Arc::new(Mutex::new(MLModel::new_from_bytes("badcrop", vec!["goodcrop", "badcrop"], (224, 224), include_bytes!("../resources/bad_crop.onnx"))))
+	Arc::new(Mutex::new(MLModel::new_from_bytes("badcrop", vec!["badcrop", "goodcrop"], (224, 224), false, include_bytes!("../resources/bad_crop.onnx"))))
 });
 static SCREENSHOT_MODEL: LazyLock<Arc<Mutex<MLModel>>> = LazyLock::new(|| {
-	Arc::new(Mutex::new(MLModel::new_from_bytes("screenshot", vec!["not_screenshot", "screenshot"], (224, 224), include_bytes!("../resources/screenshot.onnx"))))
+	Arc::new(Mutex::new(MLModel::new_from_bytes("screenshot", vec!["not_screenshot", "screenshot"], (224, 224), false, include_bytes!("../resources/screenshot.onnx"))))
 });
 static MODEL_LIST: [&LazyLock<Arc<Mutex<MLModel>>>; 3] = [&NSFW_MODEL, &BAD_CROP_MODEL, &SCREENSHOT_MODEL];
 
@@ -47,8 +47,11 @@ async fn model_info(model_name_param: QueryParam<String, false>) -> String {
 
 #[endpoint]
 async fn inference(file: FormFile, model_names: QueryParam<String, false>) -> String {
+	println!("Got to inference file.");
 	// TODO: Set return type to Json and make a real response object.
-	let img = ImageReader::open(file.path()).unwrap().decode().unwrap();
+	let img = ImageReader::open(file.path()).expect("Failed to read image from file upload")
+		.with_guessed_format().expect("Unable to determine image format.")
+		.decode().expect("Failed to decode image in file upload.");
 	let mut model_predictions: HashMap<String, Value> = HashMap::new();
 
 	let model_subset: Vec<String> = if let Some(name_list) = model_names.into_inner() {
@@ -109,7 +112,7 @@ async fn main() {
 
 	let router = router
 		.unshift(doc.into_router("/api-doc/openapi.json"))
-		.unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"));
+		.unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/docs"));
 
 	let acceptor = TcpListener::new("0.0.0.0:8080").bind().await;
 	Server::new(acceptor).serve(router).await;
